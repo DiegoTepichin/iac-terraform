@@ -158,4 +158,5 @@ Un commit = un cambio lógico. Si un commit cambia recursos en AWS, el cuerpo de
 | `backend/` | Su state es local e irrecuperable si se pierde. Bucket y tabla tienen `prevent_destroy`. |
 | Cambios en `user_data` | `user_data_replace_on_change = true`: **reemplaza** la instancia. |
 | Cambios en `root_block_device` | Pueden forzar el reemplazo de la instancia. |
+| Checkov local vs CI | CI usa la última versión de Checkov (con checks de grafo `CKV2_*`). Mantén la local al día: `pip install -U checkov`. |
 | State bloqueado | Confirmar que nadie está ejecutando `apply` antes de `terraform force-unlock <LOCK_ID>`. |

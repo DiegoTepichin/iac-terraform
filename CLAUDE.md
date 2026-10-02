@@ -9,8 +9,8 @@ Terraform para AWS (`us-east-1`): VPC + EC2/Nginx en tres ambientes aislados. Re
 ```text
 backend/               bootstrap de S3 + DynamoDB (state LOCAL, no versionado)
 environments/<env>/    root modules dev | staging | prod (state remoto por ambiente)
-modules/networking/    VPC, subnets, IGW, NAT opcional, default SG deny-all
-modules/web_server/    EC2, SG, key pair, user_data en templates/
+modules/networking/    VPC, subnets, IGW, NAT opcional, default SG sin reglas
+modules/web_server/    EC2, IAM role (SSM), SG, key pair, user_data en templates/
 ```
 
 ## Comandos

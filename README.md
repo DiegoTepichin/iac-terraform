@@ -3,7 +3,7 @@
 [![terraform-ci](https://github.com/DiegoTepichin/iac-terraform/actions/workflows/terraform-ci.yml/badge.svg)](https://github.com/DiegoTepichin/iac-terraform/actions/workflows/terraform-ci.yml)
 ![Terraform](https://img.shields.io/badge/Terraform-%3E%3D1.5-7B42BC?logo=terraform&logoColor=white)
 ![AWS Provider](https://img.shields.io/badge/AWS%20provider-5.x-FF9900?logo=amazonaws&logoColor=white)
-![Checkov](https://img.shields.io/badge/Checkov-0%20failed-2ea44f)
+![Checkov](https://img.shields.io/badge/Checkov-58%20passed%20%C2%B7%200%20failed-2ea44f)
 
 Infraestructura de AWS **modular, reproducible y segura por defecto**, desplegada en tres ambientes aislados (`dev`, `staging`, `prod`) desde una sola base de código, con state remoto bloqueado, validación de entradas, tests automatizados y pipeline de CI con escaneo de seguridad.
 
@@ -98,15 +98,16 @@ environments/<env>  (root module, un state por ambiente)
 │   ├── aws_subnet.public[n]          + route table → IGW
 │   ├── aws_subnet.private[n]         + route table → NAT (opcional)
 │   ├── aws_eip + aws_nat_gateway     (count = enable_nat_gateway)
-│   └── aws_default_security_group    (deny-all: neutraliza el SG por defecto)
+│   └── aws_default_security_group    (sin reglas: neutraliza el SG por defecto)
 └── module "web_server"
     ├── data.aws_ami                  (Ubuntu 22.04 LTS más reciente, Canonical)
+    ├── aws_iam_role + instance profile (AmazonSSMManagedInstanceCore)
     ├── aws_key_pair
     ├── aws_security_group            (HTTP público, SSH solo desde my_ip)
     └── aws_instance                  (IMDSv2, gp3 cifrado, user_data templatizado)
 
 backend/  (bootstrap, state local, se aplica una sola vez)
-├── aws_s3_bucket                     (versioning, SSE-AES256, public access block, prevent_destroy)
+├── aws_s3_bucket                     (versioning, SSE-KMS, lifecycle, public access block, prevent_destroy)
 └── aws_dynamodb_table                (LockID, PAY_PER_REQUEST, PITR, prevent_destroy)
 ```
 
@@ -129,9 +130,10 @@ backend/  (bootstrap, state local, se aplica una sola vez)
 
 ### Decisiones de arquitectura destacadas
 
-- **Seguridad por defecto, no por convención.** `my_ip = "0.0.0.0/0"` no es una advertencia: Terraform lo **rechaza** en la validación. El default security group de la VPC se neutraliza (deny-all) para que nada quede expuesto por accidente.
+- **Seguridad por defecto, no por convención.** `my_ip = "0.0.0.0/0"` no es una advertencia: Terraform lo **rechaza** en la validación. El default security group de la VPC se deja sin reglas para que nada quede expuesto por accidente.
+- **Administración sin llaves.** La instancia tiene un IAM role con `AmazonSSMManagedInstanceCore`, lo que habilita Session Manager y Patch Manager y prepara el retiro del puerto 22.
 - **IMDSv2 obligatorio** (`http_tokens = "required"`, hop limit 1): mitiga el robo de credenciales del instance profile vía SSRF, el vector del incidente de Capital One (2019).
-- **El backend se protege a sí mismo.** Bucket y tabla con `prevent_destroy` y sin `force_destroy`. Perder el state de todos los ambientes no puede ser consecuencia de un comando mal escrito.
+- **El backend se protege a sí mismo.** Bucket y tabla con `prevent_destroy` y sin `force_destroy`; el lifecycle conserva las últimas 10 versiones previas del state durante 90 días. Perder el state de todos los ambientes no puede ser consecuencia de un comando mal escrito.
 - **NAT Gateway único por ambiente.** Un NAT cuesta ~USD 33/mes más transferencia; uno por AZ en prod triplicaría ese costo. Es un trade-off consciente: la caída de la AZ del NAT deja sin salida a Internet a las subnets privadas (no afecta el tráfico entrante al web server). Ver [Roadmap](#roadmap).
 - **`plan -out` + `apply <plan>`.** `make apply` aplica exactamente el plan revisado, no uno recalculado.
 
@@ -254,16 +256,16 @@ Estado actual de los checks (ejecutables localmente con `make ci`):
 |---|---|---|
 | Formato | `terraform fmt -check` | ✅ sin diferencias |
 | Validación (4 root modules) | `terraform validate` | ✅ válidos |
-| Tests de módulos | `terraform test` | ✅ 10/10 |
+| Tests de módulos | `terraform test` | ✅ 11/11 |
 | Lint | TFLint + ruleset AWS | ✅ 0 issues |
-| Seguridad | Checkov | ✅ 22 pasados · 0 fallidos · excepciones justificadas |
+| Seguridad | Checkov 3.3 (incluye checks de grafo `CKV2_*`) | ✅ 58 pasados · 0 fallidos · excepciones justificadas |
 
 **Controles aplicados**
 
-- State cifrado (SSE-AES256), versionado y con acceso público bloqueado; lock en DynamoDB con PITR.
+- State cifrado (SSE-KMS con bucket key), versionado, con lifecycle y acceso público bloqueado; lock en DynamoDB con PITR.
 - SSH restringido a una IP (validado); HTTP es el único puerto público.
-- IMDSv2 obligatorio; volumen raíz gp3 cifrado.
-- Default security group de la VPC en deny-all.
+- IMDSv2 obligatorio; volumen raíz gp3 cifrado; IAM role de mínimo privilegio para SSM.
+- Default security group de la VPC sin reglas.
 - `*.tfstate` y `*.tfvars` excluidos de git; hook `detect-private-key` en pre-commit.
 - Lock files versionados para builds reproducibles.
 
@@ -277,6 +279,9 @@ Estado actual de los checks (ejecutables localmente con `make ci`):
 | `CKV_AWS_24` | Falso positivo: SSH se limita a `var.my_ip`, que no admite `0.0.0.0/0`. |
 | `CKV_AWS_119` | La tabla de locks no guarda datos sensibles; la llave administrada por AWS es suficiente. |
 | `CKV_AWS_126` | Detailed monitoring tiene costo; se activa por variable (activo en prod). |
+| `CKV2_AWS_19` | Falso positivo: la EIP pertenece al NAT Gateway, no a una instancia. |
+| `CKV2_AWS_11` | VPC Flow Logs pendientes por costo; están en el roadmap. |
+| `CKV_AWS_18` · `CKV_AWS_144` · `CKV2_AWS_62` | Access logging, replicación cross-region y notificaciones del bucket de state: sobredimensionados para este alcance; el versioning y CloudTrail cubren recuperación y auditoría. |
 
 ---
 
@@ -307,7 +312,7 @@ El backend (S3 + DynamoDB on-demand) cuesta centavos al mes con este volumen. `d
 Próximos pasos para llevar este diseño a una carga productiva real:
 
 - [ ] Mover la instancia a subnets privadas detrás de un **Application Load Balancer** con HTTPS (ACM) y un **Auto Scaling Group** multi-AZ.
-- [ ] Reemplazar SSH por **AWS Systems Manager Session Manager** (cero puertos de administración abiertos).
+- [ ] Retirar el puerto 22 y operar solo con **Session Manager** (el IAM role ya está en su lugar).
 - [ ] **NAT Gateway por AZ** en prod.
 - [ ] **VPC Flow Logs** hacia CloudWatch Logs o S3.
 - [ ] Workflow de `plan` en PR y `apply` con aprobación manual vía **GitHub OIDC** (sin llaves de AWS de larga duración).
