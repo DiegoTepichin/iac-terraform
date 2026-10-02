@@ -4,6 +4,9 @@
 # perder el state de todos los ambientes.
 
 resource "aws_s3_bucket" "terraform_state" {
+  # checkov:skip=CKV_AWS_18:Access logging requiere un segundo bucket; CloudTrail cubre la auditoria de la cuenta.
+  # checkov:skip=CKV_AWS_144:Replicacion cross-region innecesaria; el versioning cubre la recuperacion del state.
+  # checkov:skip=CKV2_AWS_62:Ningun consumidor necesita eventos de escritura del state.
   bucket = "iac-terraform-state-${random_id.suffix.hex}"
 
   lifecycle {
@@ -23,9 +26,34 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "terraform_state" 
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+      sse_algorithm = "aws:kms"
+    }
+    bucket_key_enabled = true
+  }
+}
+
+# Conserva las ultimas 10 versiones no vigentes del state durante 90 dias:
+# suficiente para recuperar un state corrupto sin acumular versiones sin limite.
+resource "aws_s3_bucket_lifecycle_configuration" "terraform_state" {
+  bucket = aws_s3_bucket.terraform_state.id
+
+  rule {
+    id     = "expire-noncurrent-state-versions"
+    status = "Enabled"
+
+    filter {}
+
+    noncurrent_version_expiration {
+      noncurrent_days           = 90
+      newer_noncurrent_versions = 10
+    }
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
     }
   }
+
+  depends_on = [aws_s3_bucket_versioning.terraform_state]
 }
 
 resource "aws_s3_bucket_public_access_block" "terraform_state" {
