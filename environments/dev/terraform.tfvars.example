@@ -1,0 +1,14 @@
+aws_region      = "us-east-1"
+environment     = "dev"
+instance_type   = "t3.micro"
+public_key_path = "~/.ssh/id_rsa.pub"
+
+# REEMPLAZA CON TU IP PUBLICA (curl -s ifconfig.me). 0.0.0.0/0 es rechazado por validacion.
+my_ip = "DIRECCION_IP_PUBLICA/32"
+
+# Opcional: Personalizar VPC
+# vpc_cidr          = "10.0.0.0/16"
+# availability_zones = ["us-east-1a", "us-east-1b"]
+
+# NAT Gateway deshabilitado en dev por defecto para ahorrar costos
+# enable_nat_gateway = false
