@@ -1,0 +1,26 @@
+#!/bin/bash
+# Instance bootstrap. cloud-init runs this script as root on first boot.
+set -euo pipefail
+
+apt-get update -y
+apt-get install -y nginx
+
+# Read instance identity through IMDSv2 so the page shows which instance served it.
+TOKEN=$(curl -sS -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
+imds() { curl -sS -H "X-aws-ec2-metadata-token: $TOKEN" "http://169.254.169.254/latest/meta-data/$1"; }
+INSTANCE_ID=$(imds instance-id)
+AZ=$(imds placement/availability-zone)
+
+cat > /var/www/html/index.html <<HTML
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>iac-terraform · ${environment}</title></head>
+<body style="font-family: system-ui, sans-serif; max-width: 40rem; margin: 4rem auto;">
+  <h1>iac-terraform</h1>
+  <p>Environment: <strong>${environment}</strong></p>
+  <p>Served by <code>$INSTANCE_ID</code> in <code>$AZ</code></p>
+</body>
+</html>
+HTML
+
+systemctl enable --now nginx
