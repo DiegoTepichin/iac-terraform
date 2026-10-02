@@ -43,6 +43,9 @@ environments/*/backend.local.tf
 # macOS
 .DS_Store
 
+# Lock files are versioned only for root modules (backend/ and environments/)
+modules/**/.terraform.lock.hcl
+
 # Local tooling
 .claude/settings.local.json
 .idea/
