@@ -1,3 +1,4 @@
+# Runs entirely against a mocked AWS provider: no credentials, no real resources.
 mock_provider "aws" {}
 
 variables {
@@ -13,7 +14,7 @@ run "creates_one_subnet_per_cidr" {
 
   assert {
     condition     = length(aws_subnet.public) == 2 && length(aws_subnet.private) == 2
-    error_message = "Se esperaban 2 subnets publicas y 2 privadas."
+    error_message = "Expected two public and two private subnets."
   }
 }
 
@@ -26,7 +27,7 @@ run "nat_disabled_creates_no_nat_resources" {
 
   assert {
     condition     = length(aws_nat_gateway.main) == 0 && length(aws_eip.nat) == 0
-    error_message = "Con enable_nat_gateway = false no debe existir NAT Gateway ni EIP."
+    error_message = "With enable_nat_gateway = false there must be no NAT Gateway or EIP."
   }
 }
 
@@ -39,7 +40,7 @@ run "nat_enabled_routes_private_subnets" {
 
   assert {
     condition     = length(aws_nat_gateway.main) == 1 && length(aws_route_table_association.private) == 2
-    error_message = "Con NAT habilitado, cada subnet privada debe asociarse a la tabla de rutas privada."
+    error_message = "With NAT enabled, every private subnet must use the private route table."
   }
 }
 
