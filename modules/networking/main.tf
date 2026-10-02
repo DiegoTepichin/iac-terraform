@@ -3,6 +3,7 @@ locals {
 }
 
 resource "aws_vpc" "main" {
+  # checkov:skip=CKV2_AWS_11:VPC Flow Logs planificados (ver README > Roadmap); se omiten hoy por costo.
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
   enable_dns_support   = true
@@ -79,6 +80,7 @@ resource "aws_route_table_association" "public" {
 }
 
 resource "aws_eip" "nat" {
+  # checkov:skip=CKV2_AWS_19:Falso positivo: la EIP esta asociada al NAT Gateway, no a una instancia EC2.
   count = var.enable_nat_gateway ? 1 : 0
 
   domain = "vpc"
@@ -125,24 +127,10 @@ resource "aws_route_table_association" "private" {
   route_table_id = aws_route_table.private[0].id
 }
 
+# Sin bloques ingress/egress: Terraform elimina todas las reglas del SG por
+# defecto, de modo que cualquier recurso que lo use por omision queda aislado.
 resource "aws_default_security_group" "default" {
   vpc_id = aws_vpc.main.id
-
-  ingress {
-    description = "Deny all inbound"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = []
-  }
-
-  egress {
-    description = "Deny all outbound"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = []
-  }
 
   tags = {
     Name = "${local.name_prefix}-default-sg"
