@@ -1,10 +1,10 @@
-# Configuracion de Checkov. Las excepciones puntuales se documentan inline
-# con "checkov:skip=<ID>:<justificacion>" junto al recurso afectado.
+# Checkov configuration. Resource-specific exceptions are documented inline
+# next to the resource with "checkov:skip=<ID>:<reason>".
 framework:
   - terraform
 download-external-modules: false
 quiet: true
 compact: true
 skip-check:
-  # Detailed monitoring tiene costo; se habilita por variable (activo en prod).
+  # Detailed monitoring is billed separately; it is enabled per environment (on in prod).
   - CKV_AWS_126
