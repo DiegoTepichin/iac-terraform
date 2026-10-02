@@ -37,7 +37,8 @@ override.tf.json
 .terraformrc
 terraform.rc
 
-# Local override files for backend config
+# Partial backend configuration (holds the real state bucket name)
+environments/*/backend.hcl
 environments/*/backend.local.tf
 
 # macOS

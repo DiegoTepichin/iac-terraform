@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.5.0"
+  required_version = ">= 1.7.0"
 
   required_providers {
     aws = {
@@ -12,7 +12,7 @@ terraform {
 provider "aws" {
   region = var.aws_region
 
-  # Tags comunes aplicados a todos los recursos (costos y trazabilidad).
+  # Applied to every resource for cost allocation and traceability.
   default_tags {
     tags = {
       Project     = "iac-terraform"
