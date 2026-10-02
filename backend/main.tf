@@ -1,12 +1,12 @@
-# Este módulo crea el backend remoto (S3 + DynamoDB) para almacenar el state de Terraform.
-# Se ejecuta UNA VEZ con state local, luego los ambientes apuntan a este backend.
-# El bucket y la tabla estan protegidos con prevent_destroy: perderlos implica
-# perder el state de todos los ambientes.
+# Bootstrap stack for the remote state backend (S3 + DynamoDB).
+# It is applied ONCE with local state; the environments then point at it.
+# Bucket and table use prevent_destroy: losing them means losing the state of
+# every environment.
 
 resource "aws_s3_bucket" "terraform_state" {
-  # checkov:skip=CKV_AWS_18:Access logging requiere un segundo bucket; CloudTrail cubre la auditoria de la cuenta.
-  # checkov:skip=CKV_AWS_144:Replicacion cross-region innecesaria; el versioning cubre la recuperacion del state.
-  # checkov:skip=CKV2_AWS_62:Ningun consumidor necesita eventos de escritura del state.
+  # checkov:skip=CKV_AWS_18:Access logging needs a second bucket; out of scope for a single-user state bucket.
+  # checkov:skip=CKV_AWS_144:Cross-region replication is unnecessary; versioning covers state recovery.
+  # checkov:skip=CKV2_AWS_62:Nothing consumes state write events.
   bucket = "iac-terraform-state-${random_id.suffix.hex}"
 
   lifecycle {
@@ -32,8 +32,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "terraform_state" 
   }
 }
 
-# Conserva las ultimas 10 versiones no vigentes del state durante 90 dias:
-# suficiente para recuperar un state corrupto sin acumular versiones sin limite.
+# Keep the last 10 noncurrent state versions for 90 days: enough to recover a
+# corrupted state without accumulating versions forever.
 resource "aws_s3_bucket_lifecycle_configuration" "terraform_state" {
   bucket = aws_s3_bucket.terraform_state.id
 
@@ -66,7 +66,7 @@ resource "aws_s3_bucket_public_access_block" "terraform_state" {
 }
 
 resource "aws_dynamodb_table" "terraform_locks" {
-  # checkov:skip=CKV_AWS_119:La tabla solo guarda LockIDs; el cifrado con llave administrada por AWS es suficiente.
+  # checkov:skip=CKV_AWS_119:The table only stores lock IDs; the AWS managed key is sufficient.
   name         = "iac-terraform-locks"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "LockID"
@@ -94,16 +94,16 @@ resource "random_id" "suffix" {
 }
 
 output "state_bucket" {
-  description = "Nombre del bucket S3 para el state"
+  description = "Name of the S3 bucket that stores Terraform state."
   value       = aws_s3_bucket.terraform_state.id
 }
 
 output "dynamodb_table" {
-  description = "Nombre de la tabla DynamoDB para locks"
+  description = "Name of the DynamoDB table used for state locking."
   value       = aws_dynamodb_table.terraform_locks.name
 }
 
 output "state_bucket_arn" {
-  description = "ARN del bucket S3"
+  description = "ARN of the state bucket."
   value       = aws_s3_bucket.terraform_state.arn
 }
