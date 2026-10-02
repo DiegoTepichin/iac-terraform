@@ -9,8 +9,6 @@ Terraform para una capa web con balanceo de carga en AWS: VPC, Application Load 
 ![AWS provider](https://img.shields.io/badge/AWS%20provider-~%3E%205.0-FF9900?logo=amazonaws&logoColor=white)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-<!-- TODO: screenshot — navegador en la URL del output `app_url` mostrando "Served by i-... in us-east-1a" -->
-
 ## Por qué
 
 Armar infraestructura a mano en la consola de AWS no escala: los ambientes se desalinean, los cambios no se pueden revisar y se cuelan defaults inseguros (SSH abierto, discos sin cifrar, instancias públicas). Este repositorio define todo el stack como código para que:

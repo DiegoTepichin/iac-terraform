@@ -9,8 +9,6 @@ Terraform for a load-balanced web tier on AWS: VPC, Application Load Balancer an
 ![AWS provider](https://img.shields.io/badge/AWS%20provider-~%3E%205.0-FF9900?logo=amazonaws&logoColor=white)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-<!-- TODO: screenshot — browser window on the `app_url` output showing the page "Served by i-... in us-east-1a" -->
-
 ## Why
 
 Clicking infrastructure together in the AWS console doesn't scale: environments drift apart, changes aren't reviewable, and insecure defaults (open SSH, unencrypted disks, public instances) slip through. This repository defines the whole stack as code so that:
