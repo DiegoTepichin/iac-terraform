@@ -4,6 +4,12 @@ mock_provider "aws" {
       id = "ami-0123456789abcdef0"
     }
   }
+
+  mock_data "aws_iam_policy_document" {
+    defaults = {
+      json = "{\"Version\":\"2012-10-17\",\"Statement\":[]}"
+    }
+  }
 }
 
 variables {
@@ -58,4 +64,13 @@ run "rejects_ssh_open_to_world" {
   }
 
   expect_failures = [var.my_ip]
+}
+
+run "attaches_ssm_instance_profile" {
+  command = plan
+
+  assert {
+    condition     = aws_iam_role_policy_attachment.ssm_core.policy_arn == "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+    error_message = "La instancia debe tener la politica de SSM para administracion sin SSH."
+  }
 }

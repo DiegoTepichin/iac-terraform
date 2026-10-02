@@ -17,3 +17,8 @@ output "security_group_id" {
   description = "ID del security group del web server"
   value       = aws_security_group.web_sg.id
 }
+
+output "iam_role_name" {
+  description = "Nombre del IAM role de la instancia (para adjuntar politicas adicionales)"
+  value       = aws_iam_role.web.name
+}

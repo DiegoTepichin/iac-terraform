@@ -13,6 +13,34 @@ data "aws_ami" "ubuntu" {
   }
 }
 
+# Rol de instancia con el minimo necesario para administrarla via AWS Systems
+# Manager (Session Manager, Patch Manager) sin depender de llaves SSH.
+data "aws_iam_policy_document" "ec2_assume_role" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["ec2.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "web" {
+  name               = "web-server-${var.environment}"
+  assume_role_policy = data.aws_iam_policy_document.ec2_assume_role.json
+}
+
+resource "aws_iam_role_policy_attachment" "ssm_core" {
+  role       = aws_iam_role.web.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "web" {
+  name = "web-server-${var.environment}"
+  role = aws_iam_role.web.name
+}
+
 resource "aws_key_pair" "deployer" {
   key_name   = "deployer-key-${var.environment}"
   public_key = file(var.public_key_path)
@@ -61,7 +89,9 @@ resource "aws_instance" "web" {
   key_name      = aws_key_pair.deployer.key_name
   subnet_id     = var.subnet_id
   ebs_optimized = true
-  monitoring    = var.enable_detailed_monitoring
+
+  iam_instance_profile = aws_iam_instance_profile.web.name
+  monitoring           = var.enable_detailed_monitoring
 
   vpc_security_group_ids = [aws_security_group.web_sg.id]
 
