@@ -1,19 +1,19 @@
-output "staging_vpc_id" {
-  description = "ID de la VPC en Staging"
+output "app_url" {
+  description = "HTTP URL of the application load balancer."
+  value       = module.web_app.app_url
+}
+
+output "alb_dns_name" {
+  description = "Public DNS name of the load balancer."
+  value       = module.web_app.alb_dns_name
+}
+
+output "autoscaling_group_name" {
+  description = "Name of the Auto Scaling Group running the application."
+  value       = module.web_app.autoscaling_group_name
+}
+
+output "vpc_id" {
+  description = "ID of the environment VPC."
   value       = module.networking.vpc_id
-}
-
-output "staging_instance_public_ip" {
-  description = "IP publica de la instancia en Staging"
-  value       = module.web_server.instance_public_ip
-}
-
-output "staging_instance_public_dns" {
-  description = "DNS publico de la instancia en Staging"
-  value       = module.web_server.instance_public_dns
-}
-
-output "staging_instance_id" {
-  description = "ID de la instancia en Staging"
-  value       = module.web_server.instance_id
 }

@@ -3,7 +3,7 @@ locals {
 }
 
 resource "aws_vpc" "main" {
-  # checkov:skip=CKV2_AWS_11:VPC Flow Logs planificados (ver README > Roadmap); se omiten hoy por costo.
+  # checkov:skip=CKV2_AWS_11:VPC Flow Logs are on the roadmap; omitted for now to keep cost down.
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
   enable_dns_support   = true
@@ -14,7 +14,7 @@ resource "aws_vpc" "main" {
         length(var.availability_zones) >= length(var.public_subnet_cidrs) &&
         length(var.availability_zones) >= length(var.private_subnet_cidrs)
       )
-      error_message = "Se requiere al menos una availability zone por cada subnet publica y privada."
+      error_message = "availability_zones must contain at least one zone per public and private subnet."
     }
   }
 
@@ -32,7 +32,7 @@ resource "aws_internet_gateway" "main" {
 }
 
 resource "aws_subnet" "public" {
-  # checkov:skip=CKV_AWS_130:Subnets publicas por diseno; alojan recursos que requieren IP publica.
+  # checkov:skip=CKV_AWS_130:Public subnets by design; they host the internet-facing load balancer and NAT.
   count = length(var.public_subnet_cidrs)
 
   vpc_id                  = aws_vpc.main.id
@@ -80,7 +80,7 @@ resource "aws_route_table_association" "public" {
 }
 
 resource "aws_eip" "nat" {
-  # checkov:skip=CKV2_AWS_19:Falso positivo: la EIP esta asociada al NAT Gateway, no a una instancia EC2.
+  # checkov:skip=CKV2_AWS_19:False positive: the EIP is attached to the NAT Gateway, not to an EC2 instance.
   count = var.enable_nat_gateway ? 1 : 0
 
   domain = "vpc"
@@ -90,8 +90,8 @@ resource "aws_eip" "nat" {
   }
 }
 
-# Un solo NAT Gateway (en la primera AZ) por costo. Para HA real en prod se
-# recomienda un NAT por AZ; ver README > Decisiones de arquitectura.
+# A single NAT Gateway (in the first AZ) to keep cost down. If that AZ fails,
+# private subnets lose outbound Internet access; see README > Design decisions.
 resource "aws_nat_gateway" "main" {
   count = var.enable_nat_gateway ? 1 : 0
 
@@ -127,8 +127,8 @@ resource "aws_route_table_association" "private" {
   route_table_id = aws_route_table.private[0].id
 }
 
-# Sin bloques ingress/egress: Terraform elimina todas las reglas del SG por
-# defecto, de modo que cualquier recurso que lo use por omision queda aislado.
+# No ingress/egress blocks: Terraform removes every rule from the default
+# security group, so anything that falls back to it is isolated.
 resource "aws_default_security_group" "default" {
   vpc_id = aws_vpc.main.id
 

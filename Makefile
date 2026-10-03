@@ -8,85 +8,95 @@ PLAN := tfplan
 .DEFAULT_GOAL := help
 
 .PHONY: help check-env init plan apply destroy output fmt fmt-check validate validate-all \
-        lint test security-scan ci backend-init backend-destroy clean
+        lint test docs security-scan ci backend-init backend-config backend-destroy clean
 
-help: ## Muestra esta ayuda
+help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
 check-env:
 	@if [[ ! " $(ENVS) " =~ " $(ENV) " ]]; then \
-		echo "ENV invalido: '$(ENV)'. Valores permitidos: $(ENVS)"; exit 1; \
+		echo "Invalid ENV '$(ENV)'. Allowed values: $(ENVS)"; exit 1; \
 	fi
 
-## --- Ciclo de vida por ambiente (ENV=dev|staging|prod) ---
+## --- Per-environment lifecycle (ENV=dev|staging|prod) ---
 
-init: check-env ## Inicializa el ambiente con el backend remoto
-	terraform -chdir=$(DIR) init
+init: check-env ## Initialize an environment against the remote backend
+	@test -f $(DIR)/backend.hcl || { echo "Missing $(DIR)/backend.hcl. Run 'make backend-config' first."; exit 1; }
+	terraform -chdir=$(DIR) init -backend-config=backend.hcl
 
-plan: check-env ## Genera un plan y lo guarda en environments/$ENV/tfplan
+plan: check-env ## Create a plan and save it to environments/$ENV/tfplan
 	terraform -chdir=$(DIR) plan -out=$(PLAN)
 
-apply: check-env ## Aplica exactamente el plan guardado por 'make plan'
+apply: check-env ## Apply exactly the plan saved by 'make plan'
 	terraform -chdir=$(DIR) apply $(PLAN)
 	@rm -f $(DIR)/$(PLAN)
 
-destroy: check-env ## Destruye la infraestructura del ambiente
+destroy: check-env ## Destroy the environment
 	terraform -chdir=$(DIR) destroy
 
-output: check-env ## Muestra los outputs del ambiente
+output: check-env ## Show the environment outputs
 	terraform -chdir=$(DIR) output
 
-## --- Calidad de codigo ---
+## --- Code quality (no AWS credentials needed) ---
 
-fmt: ## Formatea todo el codigo
+fmt: ## Format all Terraform files
 	terraform fmt -recursive
 
-fmt-check: ## Verifica formato sin modificar archivos (CI)
+fmt-check: ## Check formatting without changing files
 	terraform fmt -recursive -check -diff
 
-validate: check-env ## Valida el ambiente sin tocar el backend remoto
+validate: check-env ## Validate one environment without touching the backend
 	terraform -chdir=$(DIR) init -backend=false -input=false >/dev/null
 	terraform -chdir=$(DIR) validate
 
-validate-all: ## Valida backend/ y todos los ambientes
+validate-all: ## Validate backend/ and every environment
 	@for d in backend $(addprefix environments/,$(ENVS)); do \
 		echo "==> $$d"; \
 		terraform -chdir=$$d init -backend=false -input=false >/dev/null && \
 		terraform -chdir=$$d validate || exit 1; \
 	done
 
-lint: ## Ejecuta TFLint en todo el repositorio
+lint: ## Run TFLint across the repository
 	tflint --init --config "$(CURDIR)/.tflint.hcl"
 	tflint --recursive --config "$(CURDIR)/.tflint.hcl"
 
-test: ## Ejecuta los tests de modulos (terraform test + mock providers)
+test: ## Run module tests (terraform test with a mocked AWS provider)
 	@for m in modules/*/; do \
 		echo "==> $$m"; \
 		terraform -chdir=$$m init -backend=false -input=false >/dev/null && \
 		terraform -chdir=$$m test || exit 1; \
 	done
 
-security-scan: ## Escaneo de seguridad estatico (Checkov)
+docs: ## Regenerate the inputs/outputs section of each module README
+	@for m in modules/*/; do terraform-docs -c .terraform-docs.yml $$m; done
+
+security-scan: ## Static security scan with Checkov
 	checkov -d . --config-file .checkov.yaml
 
-ci: fmt-check validate-all lint test security-scan ## Ejecuta localmente los mismos checks que CI
+ci: fmt-check validate-all lint test security-scan ## Run the same checks as CI
 
-## --- Backend de state (bootstrap, una sola vez) ---
+## --- State backend (one-time bootstrap) ---
 
-backend-init: ## Crea el bucket S3 y la tabla DynamoDB del state
+backend-init: ## Create the S3 bucket and DynamoDB table for remote state
 	terraform -chdir=backend init
 	terraform -chdir=backend apply
 
-backend-destroy: ## Destruye el backend (requiere quitar prevent_destroy)
+backend-config: ## Write environments/*/backend.hcl from the backend outputs
+	@bucket=$$(terraform -chdir=backend output -raw state_bucket) && \
+	for e in $(ENVS); do \
+		echo "bucket = \"$$bucket\"" > environments/$$e/backend.hcl; \
+		echo "wrote environments/$$e/backend.hcl"; \
+	done
+
+backend-destroy: ## Destroy the backend (requires removing prevent_destroy first)
 	terraform -chdir=backend destroy
 
-## --- Limpieza ---
+## --- Cleanup ---
 
-# Borra providers descargados y planes. NUNCA borra state (*.tfstate) ni
-# .terraform.lock.hcl: el primero es irrecuperable y el segundo se versiona.
-# Conserva el symlink .terraform -> .terraform.nosync (exclusion de iCloud).
-clean: ## Borra caches de providers y planes (nunca state ni lock files)
+# Removes downloaded providers and saved plans. Never removes state (*.tfstate),
+# which is unrecoverable, or root module lock files, which are versioned.
+clean: ## Remove provider caches and saved plans (never state or lock files)
 	find . -type d -name ".terraform" -prune -exec rm -rf {} +
 	find . -type d -name ".terraform.nosync" -prune -exec sh -c 'rm -rf "$$1"/providers "$$1"/modules' _ {} \;
 	find . -type f -name "$(PLAN)" -delete

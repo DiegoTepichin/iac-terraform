@@ -6,6 +6,9 @@ repos:
       - id: terraform_tflint
         args:
           - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
+      - id: terraform_docs
+        args:
+          - --args=--config=__GIT_WORKING_DIR__/.terraform-docs.yml
       - id: terraform_checkov
         args:
           - --args=--config-file __GIT_WORKING_DIR__/.checkov.yaml

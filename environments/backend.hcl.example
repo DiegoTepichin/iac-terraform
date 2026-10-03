@@ -1,0 +1,3 @@
+# Copy to environments/<env>/backend.hcl, or run `make backend-config` to
+# generate it from the output of the backend/ stack.
+bucket = "iac-terraform-state-xxxxxxxx"

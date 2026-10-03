@@ -1,0 +1,28 @@
+version: 2
+updates:
+  - package-ecosystem: terraform
+    directories:
+      - /backend
+      - /environments/dev
+      - /environments/staging
+      - /environments/prod
+      - /modules/networking
+      - /modules/web_app
+    schedule:
+      interval: weekly
+    groups:
+      terraform-providers:
+        patterns: ["*"]
+    commit-message:
+      prefix: build
+      include: scope
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci

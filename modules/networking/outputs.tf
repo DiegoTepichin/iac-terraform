@@ -1,34 +1,34 @@
 output "vpc_id" {
-  description = "ID de la VPC"
+  description = "ID of the VPC."
   value       = aws_vpc.main.id
 }
 
 output "vpc_cidr_block" {
-  description = "Bloque CIDR de la VPC"
+  description = "CIDR block of the VPC."
   value       = aws_vpc.main.cidr_block
 }
 
 output "public_subnet_ids" {
-  description = "IDs de las subnets públicas"
+  description = "IDs of the public subnets."
   value       = aws_subnet.public[*].id
 }
 
 output "private_subnet_ids" {
-  description = "IDs de las subnets privadas"
+  description = "IDs of the private subnets."
   value       = aws_subnet.private[*].id
 }
 
 output "public_subnet_cidrs" {
-  description = "CIDRs de las subnets públicas"
+  description = "CIDR blocks of the public subnets."
   value       = aws_subnet.public[*].cidr_block
 }
 
 output "private_subnet_cidrs" {
-  description = "CIDRs de las subnets privadas"
+  description = "CIDR blocks of the private subnets."
   value       = aws_subnet.private[*].cidr_block
 }
 
 output "nat_gateway_ips" {
-  description = "IPs elásticas del NAT Gateway"
+  description = "Elastic IP addresses of the NAT Gateway (empty when disabled)."
   value       = var.enable_nat_gateway ? aws_eip.nat[*].public_ip : []
 }
