@@ -8,7 +8,7 @@ PLAN := tfplan
 .DEFAULT_GOAL := help
 
 .PHONY: help check-env init plan apply destroy output fmt fmt-check validate validate-all \
-        lint test security-scan ci backend-init backend-config backend-destroy clean
+        lint test docs security-scan ci backend-init backend-config backend-destroy clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -67,6 +67,9 @@ test: ## Run module tests (terraform test with a mocked AWS provider)
 		terraform -chdir=$$m init -backend=false -input=false >/dev/null && \
 		terraform -chdir=$$m test || exit 1; \
 	done
+
+docs: ## Regenerate the inputs/outputs section of each module README
+	@for m in modules/*/; do terraform-docs -c .terraform-docs.yml $$m; done
 
 security-scan: ## Static security scan with Checkov
 	checkov -d . --config-file .checkov.yaml

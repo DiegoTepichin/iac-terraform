@@ -3,7 +3,7 @@
 ## Setup
 
 ```bash
-brew install terraform tflint checkov pre-commit   # or your platform's equivalent
+brew install terraform tflint checkov terraform-docs pre-commit   # or your platform's equivalent
 pre-commit install
 make help
 ```
@@ -15,6 +15,7 @@ make help
 - **Modules** (`modules/*`) declare `required_providers` in `versions.tf` but no `provider` block. Region and common tags come from the root module's `default_tags`.
 - **Environments** (`environments/*`) share the same structure. A change to `main.tf`, `providers.tf` or `outputs.tf` in one environment is applied to all three; differences belong in `variables.tf` defaults.
 - **Variables and outputs** use `snake_case` and always have a `description`. Constrained inputs get a `validation` block; rules that span several inputs use a `precondition`.
+- **Module READMEs:** the inputs/outputs section between `BEGIN_TF_DOCS` and `END_TF_DOCS` is generated; run `make docs` (or let the pre-commit hook do it) instead of editing it by hand.
 - **Tests:** every new validation or precondition gets a `run` block with `expect_failures`, and every behavior change gets an `assert`. Tests use `mock_provider`, so they never touch AWS.
 - **Security exceptions** are written inline next to the resource as `# checkov:skip=<ID>:<reason>`.
 - **Never commit** `*.tfstate`, `*.tfvars`, `backend.hcl` or saved plans. Root module lock files (`.terraform.lock.hcl`) are committed.
